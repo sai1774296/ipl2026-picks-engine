@@ -18,7 +18,13 @@ interface UserRow {
   _count: { picks: number }
 }
 
-type AdminTab = "users" | "results"
+type AdminTab = "users" | "results" | "picks"
+
+interface UserPick {
+  matchId: number
+  teamPick: string
+  isCorrect: boolean | null
+}
 
 export default function AdminPage() {
   const { toast } = useToast()
@@ -74,7 +80,38 @@ export default function AdminPage() {
     }
   }
 
+  const [selectedUserId, setSelectedUserId] = useState<string>("")
+  const [userPicks, setUserPicks] = useState<Record<number, string>>({})
+  const [loadingPicks, setLoadingPicks] = useState(false)
   const [syncing, setSyncing] = useState(false)
+
+  async function fetchUserPicks(userId: string) {
+    if (!userId) return
+    setLoadingPicks(true)
+    const res = await fetch(`/api/admin/picks?userId=${userId}`)
+    const data = await res.json()
+    const picksMap: Record<number, string> = {}
+    for (const p of data.picks || []) {
+      picksMap[p.matchId] = p.teamPick
+    }
+    setUserPicks(picksMap)
+    setLoadingPicks(false)
+  }
+
+  async function adminSetPick(userId: string, matchId: number, teamPick: string) {
+    const res = await fetch("/api/admin/picks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, matchId, teamPick }),
+    })
+    if (res.ok) {
+      setUserPicks((prev) => ({ ...prev, [matchId]: teamPick }))
+      toast({ title: `Pick set: Match ${matchId} → ${teamPick}` })
+    } else {
+      const data = await res.json()
+      toast({ title: "Failed", description: data.error, variant: "destructive" })
+    }
+  }
 
   async function handleSync() {
     setSyncing(true)
@@ -109,7 +146,7 @@ export default function AdminPage() {
 
       {/* Tab Filters */}
       <div className="flex gap-2">
-        {(["users", "results"] as const).map((t) => (
+        {(["users", "results", "picks"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -117,7 +154,11 @@ export default function AdminPage() {
               tab === t ? "bg-gold text-black" : "bg-muted text-muted-foreground"
             }`}
           >
-            {t === "users" ? `Users (${users.length})` : `Results`}
+            {t === "users"
+              ? `Users (${users.length})`
+              : t === "results"
+              ? "Results"
+              : "Picks"}
           </button>
         ))}
       </div>
@@ -247,6 +288,137 @@ export default function AdminPage() {
                 )
               })}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {tab === "picks" && (
+        <Card className="bg-card text-card-foreground">
+          <CardHeader>
+            <CardTitle className="text-sm">Manage User Picks</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* User selector */}
+            <div className="flex gap-2 flex-wrap">
+              {users
+                .filter((u) => u.approved)
+                .map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => {
+                      setSelectedUserId(u.id)
+                      fetchUserPicks(u.id)
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      selectedUserId === u.id
+                        ? "bg-gold text-black"
+                        : "bg-black/10 text-muted-foreground hover:bg-black/20"
+                    }`}
+                  >
+                    {u.displayName}
+                  </button>
+                ))}
+            </div>
+
+            {/* Picks list for selected user */}
+            {selectedUserId && (
+              loadingPicks ? (
+                <div className="text-sm text-muted-foreground animate-pulse py-4 text-center">
+                  Loading picks...
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                  {SCHEDULE.map((match) => {
+                    const pick = userPicks[match.matchId]
+                    const homeTeam = TEAMS[match.home]
+                    const awayTeam = TEAMS[match.away]
+                    const result = results[match.matchId]
+
+                    return (
+                      <div
+                        key={match.matchId}
+                        className={`flex items-center justify-between p-3 rounded-lg ${
+                          pick ? "bg-black/5" : "bg-red-500/5"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-6">
+                            #{match.matchId}
+                          </span>
+                          <span
+                            className="text-sm font-medium"
+                            style={{ color: homeTeam.primary }}
+                          >
+                            {match.home}
+                          </span>
+                          <span className="text-xs text-muted-foreground">vs</span>
+                          <span
+                            className="text-sm font-medium"
+                            style={{ color: awayTeam.primary }}
+                          >
+                            {match.away}
+                          </span>
+                          {pick && (
+                            <Badge
+                              className="text-[10px]"
+                              style={{
+                                backgroundColor:
+                                  (pick === match.home
+                                    ? homeTeam.primary
+                                    : awayTeam.primary) + "20",
+                                color:
+                                  pick === match.home
+                                    ? homeTeam.primary
+                                    : awayTeam.primary,
+                              }}
+                            >
+                              Picked: {pick}
+                            </Badge>
+                          )}
+                          {!pick && (
+                            <Badge variant="secondary" className="text-[10px] text-red-400">
+                              No pick
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant={pick === match.home ? "default" : "outline"}
+                            className={`text-xs h-7 px-2 ${
+                              pick === match.home ? "bg-gold text-black" : ""
+                            }`}
+                            onClick={() =>
+                              adminSetPick(selectedUserId, match.matchId, match.home)
+                            }
+                          >
+                            {match.home}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={pick === match.away ? "default" : "outline"}
+                            className={`text-xs h-7 px-2 ${
+                              pick === match.away ? "bg-gold text-black" : ""
+                            }`}
+                            onClick={() =>
+                              adminSetPick(selectedUserId, match.matchId, match.away)
+                            }
+                          >
+                            {match.away}
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            )}
+
+            {!selectedUserId && (
+              <div className="text-center py-8 text-sm text-muted-foreground">
+                Select a user above to view and manage their picks
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
