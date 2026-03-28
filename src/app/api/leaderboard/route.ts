@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { SCHEDULE, TEAMS } from "@/data/schedule"
 
 export async function GET() {
   const session = await auth()
@@ -20,9 +21,10 @@ export async function GET() {
     },
   })
 
-  // Get completed match count
-  const completedCount = await prisma.matchResult.count({
+  // Get completed matches with results
+  const completedResults = await prisma.matchResult.findMany({
     where: { status: "completed" },
+    orderBy: { matchId: "desc" },
   })
 
   const leaderboard = users
@@ -52,5 +54,25 @@ export async function GET() {
     return { ...entry, rank: currentRank }
   })
 
-  return NextResponse.json({ leaderboard: ranked, completedMatches: completedCount })
+  // Recent results (last 10 completed matches)
+  const recentResults = completedResults.slice(0, 10).map((r) => {
+    const match = SCHEDULE.find((m) => m.matchId === r.matchId)
+    return {
+      matchId: r.matchId,
+      home: match?.home || "",
+      away: match?.away || "",
+      homeName: TEAMS[match?.home || ""]?.name || "",
+      awayName: TEAMS[match?.away || ""]?.name || "",
+      homeColor: TEAMS[match?.home || ""]?.primary || "#666",
+      awayColor: TEAMS[match?.away || ""]?.primary || "#666",
+      winner: r.winner,
+      date: match?.date || "",
+    }
+  })
+
+  return NextResponse.json({
+    leaderboard: ranked,
+    completedMatches: completedResults.length,
+    recentResults,
+  })
 }

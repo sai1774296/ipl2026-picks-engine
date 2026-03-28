@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
-import { TEAMS } from "@/data/schedule"
+import { TEAMS, SCHEDULE } from "@/data/schedule"
 
 export async function GET() {
   const session = await auth()
@@ -57,6 +57,31 @@ export async function GET() {
     isCorrect: p.isCorrect,
   }))
 
+  // Match history: all picks with results
+  const matchResults = await prisma.matchResult.findMany({
+    where: { status: "completed" },
+  })
+  const resultsMap = new Map(matchResults.map((r) => [r.matchId, r]))
+
+  const matchHistory = picks
+    .filter((p) => p.isCorrect !== null)
+    .map((p) => {
+      const match = SCHEDULE.find((m) => m.matchId === p.matchId)
+      const result = resultsMap.get(p.matchId)
+      return {
+        matchId: p.matchId,
+        home: match?.home || "",
+        away: match?.away || "",
+        homeColor: TEAMS[match?.home || ""]?.primary || "#666",
+        awayColor: TEAMS[match?.away || ""]?.primary || "#666",
+        date: match?.date || "",
+        teamPick: p.teamPick,
+        winner: result?.winner || null,
+        isCorrect: p.isCorrect,
+      }
+    })
+    .sort((a, b) => b.matchId - a.matchId)
+
   return NextResponse.json({
     totalPicks: picks.length,
     resolvedPicks: total,
@@ -66,5 +91,6 @@ export async function GET() {
     bestStreak,
     teamStats,
     recentForm,
+    matchHistory,
   })
 }

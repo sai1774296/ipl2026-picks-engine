@@ -4,6 +4,18 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { TEAMS } from "@/data/schedule"
 
+interface MatchHistoryItem {
+  matchId: number
+  home: string
+  away: string
+  homeColor: string
+  awayColor: string
+  date: string
+  teamPick: string
+  winner: string | null
+  isCorrect: boolean | null
+}
+
 interface StatsData {
   totalPicks: number
   resolvedPicks: number
@@ -13,6 +25,7 @@ interface StatsData {
   bestStreak: number
   teamStats: Record<string, { picked: number; correct: number }>
   recentForm: { matchId: number; teamPick: string; isCorrect: boolean | null }[]
+  matchHistory: MatchHistoryItem[]
 }
 
 export default function StatsPage() {
@@ -123,6 +136,72 @@ export default function StatsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Match History */}
+      {stats.matchHistory && stats.matchHistory.length > 0 && (
+        <Card className="bg-card text-card-foreground overflow-hidden">
+          <CardContent className="p-0">
+            <div className="px-4 py-3 bg-black/5 border-b border-border/50">
+              <span className="text-sm font-semibold">Match History</span>
+              <span className="text-xs text-muted-foreground ml-2">
+                ({stats.matchHistory.length} completed)
+              </span>
+            </div>
+            {stats.matchHistory.map((m, i) => (
+              <div
+                key={m.matchId}
+                className={`flex items-center justify-between px-4 py-3 ${
+                  i !== stats.matchHistory.length - 1 ? "border-b border-border/30" : ""
+                } ${m.isCorrect ? "bg-green-500/5" : "bg-red-500/5"}`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-8">
+                    #{m.matchId}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`font-bold text-sm ${
+                        m.winner === m.home ? "" : "opacity-40"
+                      }`}
+                      style={{ color: m.homeColor }}
+                    >
+                      {m.home}
+                    </span>
+                    <span className="text-xs text-muted-foreground">vs</span>
+                    <span
+                      className={`font-bold text-sm ${
+                        m.winner === m.away ? "" : "opacity-40"
+                      }`}
+                      style={{ color: m.awayColor }}
+                    >
+                      {m.away}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor:
+                        (m.teamPick === m.home ? m.homeColor : m.awayColor) + "15",
+                      color: m.teamPick === m.home ? m.homeColor : m.awayColor,
+                    }}
+                  >
+                    Picked {m.teamPick}
+                  </span>
+                  <span
+                    className={`text-xs font-bold ${
+                      m.isCorrect ? "text-green-500" : "text-red-400"
+                    }`}
+                  >
+                    {m.isCorrect ? "✓" : "✗"}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

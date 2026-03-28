@@ -15,10 +15,23 @@ interface LeaderboardEntry {
   accuracy: number
 }
 
+interface MatchResult {
+  matchId: number
+  home: string
+  away: string
+  homeName: string
+  awayName: string
+  homeColor: string
+  awayColor: string
+  winner: string | null
+  date: string
+}
+
 export default function LeaderboardPage() {
   const { data: session } = useSession()
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [completedMatches, setCompletedMatches] = useState(0)
+  const [recentResults, setRecentResults] = useState<MatchResult[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -27,6 +40,7 @@ export default function LeaderboardPage() {
       const data = await res.json()
       setEntries(data.leaderboard || [])
       setCompletedMatches(data.completedMatches || 0)
+      setRecentResults(data.recentResults || [])
       setLoading(false)
     }
     fetchData()
@@ -183,6 +197,71 @@ export default function LeaderboardPage() {
               })}
             </CardContent>
           </Card>
+
+          {/* Recent Match Results */}
+          {recentResults.length > 0 && (
+            <Card className="bg-card text-card-foreground overflow-hidden">
+              <div className="px-4 py-3 bg-black/5 border-b border-border/50">
+                <span className="text-sm font-semibold">Recent Results</span>
+              </div>
+              <CardContent className="p-0">
+                {recentResults.map((result, i) => (
+                  <div
+                    key={result.matchId}
+                    className={`flex items-center justify-between px-4 py-3 ${
+                      i !== recentResults.length - 1 ? "border-b border-border/30" : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground w-8">
+                        #{result.matchId}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-bold text-sm ${
+                            result.winner === result.home ? "" : "opacity-40"
+                          }`}
+                          style={{ color: result.homeColor }}
+                        >
+                          {result.home}
+                        </span>
+                        <span className="text-xs text-muted-foreground">vs</span>
+                        <span
+                          className={`font-bold text-sm ${
+                            result.winner === result.away ? "" : "opacity-40"
+                          }`}
+                          style={{ color: result.awayColor }}
+                        >
+                          {result.away}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {result.winner ? (
+                        <span
+                          className="text-xs font-bold px-2 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor:
+                              (result.winner === result.home
+                                ? result.homeColor
+                                : result.awayColor) + "20",
+                            color:
+                              result.winner === result.home
+                                ? result.homeColor
+                                : result.awayColor,
+                          }}
+                        >
+                          {result.winner} won
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No result</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
