@@ -74,6 +74,27 @@ export default function AdminPage() {
     }
   }
 
+  const [syncing, setSyncing] = useState(false)
+
+  async function handleSync() {
+    setSyncing(true)
+    try {
+      const res = await fetch("/api/results/sync", { method: "POST" })
+      const data = await res.json()
+      if (data.synced > 0) {
+        toast({ title: `Synced ${data.synced} match result(s) from CricAPI` })
+        fetchData() // refresh results
+      } else if (data.errors?.length > 0) {
+        toast({ title: "Sync issue", description: data.errors[0], variant: "destructive" })
+      } else {
+        toast({ title: "No new results to sync" })
+      }
+    } catch {
+      toast({ title: "Sync failed", variant: "destructive" })
+    }
+    setSyncing(false)
+  }
+
   if (loading) {
     return (
       <div className="p-6 flex justify-center">
@@ -140,8 +161,16 @@ export default function AdminPage() {
 
       {tab === "results" && (
         <Card className="bg-card text-card-foreground">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-sm">Match Results</CardTitle>
+            <Button
+              size="sm"
+              className="text-xs h-8 bg-gold text-black hover:bg-gold/80"
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              {syncing ? "Syncing..." : "Sync from CricAPI"}
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-[60vh] overflow-y-auto">
