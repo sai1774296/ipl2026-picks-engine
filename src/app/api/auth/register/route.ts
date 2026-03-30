@@ -4,7 +4,10 @@ import { prisma } from "@/lib/db"
 
 export async function POST(req: Request) {
   try {
-    const { username, displayName, password } = await req.json()
+    const body = await req.json()
+    const username = (body.username as string)?.toLowerCase().trim()
+    const displayName = body.displayName as string
+    const password = body.password as string
 
     if (!username || !displayName || !password) {
       return NextResponse.json(
@@ -40,7 +43,7 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    const adminUsernames = (process.env.ADMIN_USERNAMES || "saimanish").split(",").map(s => s.trim())
+    const adminUsernames = (process.env.ADMIN_USERNAMES || "saimanish").split(",").map(s => s.trim().toLowerCase())
     const isAdmin = adminUsernames.includes(username)
 
     await prisma.user.create({

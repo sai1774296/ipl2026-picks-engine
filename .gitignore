@@ -28,6 +28,11 @@ yarn-error.log*
 # local env files
 .env
 .env*.local
+scripts/.env
+scripts/.wwebjs_auth/
+scripts/.wwebjs_cache/
+.wwebjs_auth/
+.wwebjs_cache/
 
 # sqlite
 *.db

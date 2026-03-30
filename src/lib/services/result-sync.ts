@@ -27,9 +27,9 @@ export async function syncResults(): Promise<{
   synced: number
   errors: string[]
 }> {
-  const apiKey = process.env.CRICAPI_KEY
+  const apiKey = process.env.CRICAPI_KEY?.trim()
   if (!apiKey) {
-    return { synced: 0, errors: ["CRICAPI_KEY not configured"] }
+    return { synced: 0, errors: ["CRICAPI_KEY not configured — set it in Railway → Variables"] }
   }
 
   const errors: string[] = []

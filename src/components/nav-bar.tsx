@@ -9,6 +9,7 @@ const navItems = [
   { href: "/matches", label: "Matches", icon: "&#127951;" },
   { href: "/leaderboard", label: "Board", icon: "&#127942;" },
   { href: "/stats", label: "Stats", icon: "&#128202;" },
+  { href: "/picks-summary", label: "Summary", icon: "&#128203;" },
 ]
 
 export function NavBar() {
