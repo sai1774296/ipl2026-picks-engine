@@ -221,12 +221,18 @@ async function main() {
   })
 
   client.on("ready", async () => {
-    console.log("✅ WhatsApp connected. Sending message...")
+    console.log("✅ WhatsApp connected. Fetching chat...")
     try {
-      await client.sendMessage(GROUP_ID, message)
-      console.log("✅ Message sent to group!")
-      // Wait for WhatsApp to actually deliver before disconnecting
-      await new Promise((resolve) => setTimeout(resolve, 4000))
+      const chat = await client.getChatById(GROUP_ID)
+      if (!chat) {
+        console.error("❌ Group not found. Check GROUP_ID.")
+        process.exit(1)
+      }
+      console.log(`📨 Sending to: ${chat.name}`)
+      const msg = await chat.sendMessage(message)
+      console.log(`✅ Message sent! ID: ${msg.id.id}`)
+      // Wait for delivery confirmation before disconnecting
+      await new Promise((resolve) => setTimeout(resolve, 5000))
     } catch (e) {
       console.error("❌ Failed to send:", e.message)
     } finally {
