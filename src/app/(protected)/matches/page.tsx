@@ -31,10 +31,15 @@ export default function MatchesPage() {
   const [tab, setTab] = useState<TabFilter>("upcoming")
 
   const fetchMatches = useCallback(async () => {
-    const res = await fetch("/api/matches")
-    const data = await res.json()
-    if (data.matches) setMatches(data.matches)
-    setLoading(false)
+    try {
+      const res = await fetch("/api/matches")
+      const data = await res.json()
+      if (data.matches) setMatches(data.matches)
+    } catch (e) {
+      console.error("Failed to fetch matches:", e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
