@@ -11,6 +11,7 @@ export interface Match {
   home: string // team code
   away: string // team code
   venue: string
+  label?: string // e.g. "Qualifier 1", "Final"
 }
 
 export const TEAMS: Record<string, Team> = {
@@ -24,6 +25,7 @@ export const TEAMS: Record<string, Team> = {
   DC:  { code: "DC",  name: "Delhi Capitals", primary: "#0078BC", secondary: "#EF1B23" },
   RR:  { code: "RR",  name: "Rajasthan Royals", primary: "#2D74B3", secondary: "#EA1A85" },
   LSG: { code: "LSG", name: "Lucknow Super Giants", primary: "#A72056", secondary: "#FEBE10" },
+  TBD: { code: "TBD", name: "To Be Determined", primary: "#6B7280", secondary: "#4B5563" },
 }
 
 // All times in UTC. 19:30 IST = 14:00 UTC. 15:30 IST = 10:00 UTC.
@@ -98,7 +100,11 @@ export const SCHEDULE: Match[] = [
   { matchId: 68, date: "2026-05-23T14:00:00Z", home: "LSG",  away: "PBKS", venue: "Lucknow" },
   { matchId: 69, date: "2026-05-24T10:00:00Z", home: "MI",   away: "RR",   venue: "Mumbai" },
   { matchId: 70, date: "2026-05-24T14:00:00Z", home: "KKR",  away: "DC",   venue: "Kolkata" },
-  // Playoff matches (71-74) to be added when teams qualify
+  // Playoff matches — teams assigned via admin panel after league stage (May 24)
+  { matchId: 71, date: "2026-05-26T14:00:00Z", home: "TBD", away: "TBD", venue: "Dharamshala",    label: "Qualifier 1" },
+  { matchId: 72, date: "2026-05-27T14:00:00Z", home: "TBD", away: "TBD", venue: "New Chandigarh", label: "Eliminator" },
+  { matchId: 73, date: "2026-05-29T14:00:00Z", home: "TBD", away: "TBD", venue: "New Chandigarh", label: "Qualifier 2" },
+  { matchId: 74, date: "2026-05-31T14:00:00Z", home: "TBD", away: "TBD", venue: "Ahmedabad",      label: "Final" },
 ]
 
 export function getMatchById(matchId: number): Match | undefined {

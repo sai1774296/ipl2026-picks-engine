@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { SCHEDULE, TEAMS } from "@/data/schedule"
 
+const TEAM_CODES = ["RCB", "SRH", "MI", "KKR", "CSK", "PBKS", "GT", "DC", "RR", "LSG"]
+const PLAYOFF_MATCHES = SCHEDULE.filter((m) => m.matchId >= 71)
+
 interface UserRow {
   id: string
   username: string
@@ -18,7 +21,7 @@ interface UserRow {
   _count: { picks: number }
 }
 
-type AdminTab = "users" | "results" | "picks"
+type AdminTab = "users" | "results" | "picks" | "playoffs"
 
 interface UserPick {
   matchId: number
@@ -85,6 +88,43 @@ export default function AdminPage() {
   const [loadingPicks, setLoadingPicks] = useState(false)
   const [syncing, setSyncing] = useState(false)
 
+  // Playoff team state: { matchId -> { home, away } }
+  const [playoffTeams, setPlayoffTeams] = useState<Record<number, { home: string; away: string }>>({})
+  const [playoffDraft, setPlayoffDraft] = useState<Record<number, { home: string; away: string }>>({})
+
+  useEffect(() => {
+    fetchPlayoffTeams()
+  }, [])
+
+  async function fetchPlayoffTeams() {
+    const res = await fetch("/api/admin/playoff-teams")
+    if (!res.ok) return
+    const data = await res.json()
+    const map: Record<number, { home: string; away: string }> = {}
+    for (const pt of data.playoffTeams || []) {
+      map[pt.matchId] = { home: pt.home, away: pt.away }
+    }
+    setPlayoffTeams(map)
+    setPlayoffDraft(map)
+  }
+
+  async function savePlayoffTeams(matchId: number) {
+    const draft = playoffDraft[matchId]
+    if (!draft?.home || !draft?.away) return
+    const res = await fetch("/api/admin/playoff-teams", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId, home: draft.home, away: draft.away }),
+    })
+    if (res.ok) {
+      setPlayoffTeams((prev) => ({ ...prev, [matchId]: draft }))
+      toast({ title: `Match ${matchId} teams set: ${draft.home} vs ${draft.away}` })
+    } else {
+      const data = await res.json()
+      toast({ title: "Failed", description: data.error, variant: "destructive" })
+    }
+  }
+
   async function fetchUserPicks(userId: string) {
     if (!userId) return
     setLoadingPicks(true)
@@ -146,7 +186,7 @@ export default function AdminPage() {
 
       {/* Tab Filters */}
       <div className="flex gap-2">
-        {(["users", "results", "picks"] as const).map((t) => (
+        {(["users", "results", "picks", "playoffs"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -158,7 +198,9 @@ export default function AdminPage() {
               ? `Users (${users.length})`
               : t === "results"
               ? "Results"
-              : "Picks"}
+              : t === "picks"
+              ? "Picks"
+              : "Playoffs"}
           </button>
         ))}
       </div>
@@ -218,8 +260,8 @@ export default function AdminPage() {
               {SCHEDULE.map((match) => {
                 const result = results[match.matchId]
                 const isPast = new Date() >= new Date(match.date)
-                const homeTeam = TEAMS[match.home]
-                const awayTeam = TEAMS[match.away]
+                const homeTeam = TEAMS[match.home] ?? TEAMS["TBD"]
+                const awayTeam = TEAMS[match.away] ?? TEAMS["TBD"]
 
                 return (
                   <div
@@ -330,8 +372,8 @@ export default function AdminPage() {
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                   {SCHEDULE.map((match) => {
                     const pick = userPicks[match.matchId]
-                    const homeTeam = TEAMS[match.home]
-                    const awayTeam = TEAMS[match.away]
+                    const homeTeam = TEAMS[match.home] ?? TEAMS["TBD"]
+                    const awayTeam = TEAMS[match.away] ?? TEAMS["TBD"]
                     const result = results[match.matchId]
 
                     return (
@@ -419,6 +461,103 @@ export default function AdminPage() {
                 Select a user above to view and manage their picks
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {tab === "playoffs" && (
+        <Card className="bg-card text-card-foreground">
+          <CardHeader>
+            <CardTitle className="text-sm">Set Playoff Teams</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              After the league stage ends (May 24), select the qualified teams for each playoff match.
+              Users will then be able to make their picks.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {PLAYOFF_MATCHES.map((match) => {
+                const saved = playoffTeams[match.matchId]
+                const draft = playoffDraft[match.matchId] ?? { home: "", away: "" }
+                const isDirty =
+                  draft.home !== (saved?.home ?? "") || draft.away !== (saved?.away ?? "")
+
+                return (
+                  <div key={match.matchId} className="p-4 rounded-lg bg-black/5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold text-gold text-sm">{match.label}</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {match.venue} &middot; May {new Date(match.date).getDate()}
+                        </span>
+                      </div>
+                      {saved && (
+                        <Badge className="bg-green-500/20 text-green-600 text-[10px]">
+                          {saved.home} vs {saved.away}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <select
+                        value={draft.home}
+                        onChange={(e) =>
+                          setPlayoffDraft((prev) => ({
+                            ...prev,
+                            [match.matchId]: { ...draft, home: e.target.value },
+                          }))
+                        }
+                        className="flex-1 rounded-md border-2 border-gold/40 bg-black/40 text-foreground px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-gold"
+                        style={{
+                          borderLeftColor: draft.home ? TEAMS[draft.home]?.primary : undefined,
+                          borderLeftWidth: draft.home ? "4px" : undefined,
+                        }}
+                      >
+                        <option value="" className="bg-background">— Select Team 1 —</option>
+                        {TEAM_CODES.map((code) => (
+                          <option key={code} value={code} disabled={code === draft.away} className="bg-background">
+                            {code} — {TEAMS[code].name}
+                          </option>
+                        ))}
+                      </select>
+
+                      <span className="hidden sm:block text-xs text-muted-foreground font-bold">VS</span>
+
+                      <select
+                        value={draft.away}
+                        onChange={(e) =>
+                          setPlayoffDraft((prev) => ({
+                            ...prev,
+                            [match.matchId]: { ...draft, away: e.target.value },
+                          }))
+                        }
+                        className="flex-1 rounded-md border-2 border-gold/40 bg-black/40 text-foreground px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-gold"
+                        style={{
+                          borderLeftColor: draft.away ? TEAMS[draft.away]?.primary : undefined,
+                          borderLeftWidth: draft.away ? "4px" : undefined,
+                        }}
+                      >
+                        <option value="" className="bg-background">— Select Team 2 —</option>
+                        {TEAM_CODES.map((code) => (
+                          <option key={code} value={code} disabled={code === draft.home} className="bg-background">
+                            {code} — {TEAMS[code].name}
+                          </option>
+                        ))}
+                      </select>
+
+                      <Button
+                        size="sm"
+                        className="bg-gold text-black hover:bg-gold/80 h-10 px-5 font-semibold w-full sm:w-auto"
+                        disabled={!draft.home || !draft.away || draft.home === draft.away || !isDirty}
+                        onClick={() => savePlayoffTeams(match.matchId)}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </CardContent>
         </Card>
       )}

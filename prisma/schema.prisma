@@ -38,3 +38,9 @@ model MatchResult {
   status    String   @default("upcoming")
   updatedAt DateTime @updatedAt
 }
+
+model PlayoffTeam {
+  matchId Int    @id
+  home    String
+  away    String
+}

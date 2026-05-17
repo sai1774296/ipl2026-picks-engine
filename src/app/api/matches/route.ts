@@ -19,15 +19,26 @@ export async function GET() {
   })
   const picksMap = new Map(picks.map((p) => [p.matchId, p]))
 
+  // Get playoff team assignments from DB
+  const playoffTeams = await prisma.playoffTeam.findMany()
+  const playoffTeamsMap = new Map(playoffTeams.map((p) => [p.matchId, p]))
+
   const matches = SCHEDULE.map((match) => {
     const result = resultsMap.get(match.matchId)
     const pick = picksMap.get(match.matchId)
     const locked = isMatchLocked(match.matchId)
 
+    // Apply playoff team override from DB if available
+    const playoffOverride = playoffTeamsMap.get(match.matchId)
+    const home = playoffOverride?.home ?? match.home
+    const away = playoffOverride?.away ?? match.away
+
     return {
       ...match,
-      homeTeam: TEAMS[match.home],
-      awayTeam: TEAMS[match.away],
+      home,
+      away,
+      homeTeam: TEAMS[home] ?? TEAMS["TBD"],
+      awayTeam: TEAMS[away] ?? TEAMS["TBD"],
       isLocked: locked,
       status: result?.status || (locked ? "live" : "upcoming"),
       winner: result?.winner || null,

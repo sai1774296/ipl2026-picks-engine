@@ -13,6 +13,7 @@ interface MatchData {
   home: string
   away: string
   venue: string
+  label?: string
   homeTeam: Team
   awayTeam: Team
   isLocked: boolean
@@ -56,12 +57,23 @@ export function MatchCard({
     <Card className="overflow-hidden bg-card text-card-foreground">
       {/* Header: match number, date, venue */}
       <div className="px-4 py-2 bg-black/10 flex items-center justify-between text-xs">
-        <span className="font-medium">Match {match.matchId}</span>
+        <span className="font-medium">
+          {match.label ? (
+            <span className="text-gold font-semibold">{match.label}</span>
+          ) : (
+            `Match ${match.matchId}`
+          )}
+        </span>
         <span>{formatMatchDate(match.date)} &middot; {formatMatchTime(match.date)}</span>
       </div>
 
       {/* Teams */}
       <div className="p-4">
+        {match.home === "TBD" && match.away === "TBD" ? (
+          <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+            <span>Teams TBD &mdash; announced after league stage (May 24)</span>
+          </div>
+        ) : (
         <div className="flex items-center justify-between gap-2">
           {/* Home Team */}
           <TeamButton
@@ -100,6 +112,7 @@ export function MatchCard({
             onClick={() => handlePick(match.away)}
           />
         </div>
+        )}
 
         {/* Footer: venue, countdown, result */}
         <div className="mt-3 flex items-center justify-between">

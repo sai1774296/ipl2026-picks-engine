@@ -34,9 +34,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Match not found" }, { status: 404 })
   }
 
-  // Validate team is in this match
+  // Validate team is in this match (check DB for playoff team overrides)
   const teams = getTeamCodes(matchId)
-  if (!teams || !teams.includes(teamPick)) {
+  if (!teams) {
+    return NextResponse.json({ error: "Invalid team for this match" }, { status: 400 })
+  }
+  let validTeams: [string, string] = teams
+  if (teams.includes("TBD")) {
+    const playoffTeam = await prisma.playoffTeam.findUnique({ where: { matchId } })
+    if (!playoffTeam) {
+      return NextResponse.json({ error: "Teams not yet announced for this match" }, { status: 400 })
+    }
+    validTeams = [playoffTeam.home, playoffTeam.away]
+  }
+  if (!validTeams.includes(teamPick)) {
     return NextResponse.json({ error: "Invalid team for this match" }, { status: 400 })
   }
 
